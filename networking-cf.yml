@@ -1,24 +1,34 @@
 Description: >
   Network Infra for Udagram
+Parameters:
+  VPCCidrBlock:
+    Default: 172.32.0.0/16
+    Type: String
+  Subnet0CidrBlock:
+    Default: 172.32.0.0/28
+    Type: String
+  Subnet1CidrBlock:
+    Default: 172.32.1.0/28
+    Type: String
 Resources:
   CFUdagramVPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 172.32.0.0/16
+      CidrBlock: !Ref VPCCidrBlock
       EnableDnsHostnames: true
       EnableDnsSupport: true
   CFPubSubnet0:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: us-east-2a
-      CidrBlock: 172.32.0.0/28
+      CidrBlock: !Ref Subnet0CidrBlock
       MapPublicIpOnLaunch: false
       VpcId: !Ref CFUdagramVPC
   CFPubSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: us-east-2c
-      CidrBlock: 172.32.1.0/28
+      CidrBlock: !Ref Subnet1CidrBlock
       MapPublicIpOnLaunch: false
       VpcId: !Ref CFUdagramVPC
   CFSecGroup:
