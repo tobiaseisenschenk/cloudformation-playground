@@ -1,0 +1,100 @@
+Description: >
+    Udagram - A Udacity Project
+Parameters:
+    EC2InstanceType:
+        Default: t2.medium
+        NoEcho: true
+        Description: The machine to serve Udagram
+        Type: String
+Resources:
+    IAMProfileWebApp:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            InstanceProfileName: IAMProfileWebApp
+            Path: /
+            Roles:
+                - ReadonlyS3
+    CFUdagramLaunchConfig:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        Properties:
+            AssociatePublicIpAddress: false
+            IamInstanceProfile: !Ref IAMProfileWebApp
+            ImageId: ami-0fc20dd1da406780b
+            InstanceType: !Ref EC2InstanceType
+            # Enable this line to get ssh access to the created instances
+            # KeyName: AWS_SSH_KEY
+            SecurityGroups:
+                - Fn::ImportValue: UdagramSecGroup
+            UserData:
+                Fn::Base64: !Sub |
+                    #!/bin/bash
+                    sudo apt-get update -y
+                    sudo apt-get install unzip awscli -y
+                    sudo apt-get install apache2 -y
+                    sudo systemctl start apache2.service
+                    cd /var/www/html
+                    sudo aws s3 cp s3://udacity-demo-1/udacity.zip .
+                    echo "It worked yay"
+                    sudo unzip -o udacity.zip
+            BlockDeviceMappings:
+                - DeviceName: "/dev/sdk"
+                  Ebs:
+                      DeleteOnTermination: true
+                      VolumeSize: 10
+                      VolumeType: standard
+    CFUdagramAutoScalingGroup:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            AutoScalingGroupName: CFUdagramAutoScalingGroup
+            VPCZoneIdentifier:
+                - Fn::ImportValue: UdagramSubnet0
+                - Fn::ImportValue: UdagramSubnet1
+            DesiredCapacity: 4
+            HealthCheckGracePeriod: 40
+            HealthCheckType: EC2
+            LaunchConfigurationName:
+                Ref: "CFUdagramLaunchConfig"
+            MaxSize: 5
+            MinSize: 4
+            TargetGroupARNs:
+                - !Ref CFUdagramTargetGroup
+    CFUdagramLoadBalancer:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            IpAddressType: ipv4
+            Name: CFUdagramLoadBalancer
+            SecurityGroups:
+                - Fn::ImportValue: UdagramSecGroup
+            Subnets:
+                - Fn::ImportValue: UdagramSubnet0
+                - Fn::ImportValue: UdagramSubnet1
+            Type: application
+    CFUdagramLBListener:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            DefaultActions:
+                - Type: forward
+                  TargetGroupArn: !Ref CFUdagramTargetGroup
+            LoadBalancerArn: !Ref CFUdagramLoadBalancer
+            Port: 80
+            Protocol: HTTP
+    CFUdagramTargetGroup:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            HealthCheckEnabled: True
+            HealthCheckIntervalSeconds: 300
+            HealthCheckPath: /
+            HealthCheckPort: 80
+            HealthCheckProtocol: HTTP
+            HealthCheckTimeoutSeconds: 100
+            HealthyThresholdCount: 2
+            Name: CFUdagramTargetGroup
+            Port: 80
+            Protocol: HTTP
+            UnhealthyThresholdCount: 2
+            VpcId:
+                Fn::ImportValue: UdagramVPC
+Outputs:
+    LoadBalancerDNS:
+        Description: DNS for the LB in front of Udagram
+        Value: !Join ["", ["http://", !GetAtt CFUdagramLoadBalancer.DNSName]]

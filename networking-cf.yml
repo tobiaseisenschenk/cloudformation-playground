@@ -1,0 +1,75 @@
+Description: >
+  Network Infra for Udagram
+Resources:
+  CFUdagramVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.32.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+  CFPubSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-2a
+      CidrBlock: 172.32.0.0/28
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref CFUdagramVPC
+  CFPubSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-2c
+      CidrBlock: 172.32.1.0/28
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref CFUdagramVPC
+  CFSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for a public web-server
+      GroupName: CFSecGroup
+      VpcId: !Ref CFUdagramVPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: -1
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+  CFIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Purpose
+          Value: WebServer
+  CFIGWAtachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref CFIGW
+      VpcId: !Ref CFUdagramVPC
+Outputs:
+  UdagramVPC:
+    Description: VPC for Udagram
+    Value: !Ref CFUdagramVPC
+    Export:
+      Name: UdagramVPC
+  UdagramSubnet0:
+    Description: A subnet to host Udagram
+    Value: !Ref CFPubSubnet0
+    Export:
+      Name: UdagramSubnet0
+  UdagramSubnet1:
+    Description: A subnet to host Udagram
+    Value: !Ref CFPubSubnet1
+    Export:
+      Name: UdagramSubnet1
+  UdagramSecGroup:
+    Description: Security Group to host Udagram
+    Value: !Ref CFSecGroup
+    Export:
+      Name: UdagramSecGroup
